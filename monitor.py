@@ -90,7 +90,11 @@ def find_keywords(text: str) -> List[str]:
 
 
 def parse_feed(feed_name: str, url: str, keyword_filter: bool, sent_items: Set[str]) -> Tuple[List[MatchedItem], Set[str]]:
-    parsed = feedparser.parse(url)
+    parsed = fetch_feed(url)
+
+if parsed is None:
+    print(f"RSS 수집 실패: {name}")
+    return [], []
     new_ids: Set[str] = set()
     matched_items: List[MatchedItem] = []
 
