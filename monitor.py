@@ -2,7 +2,7 @@ import json
 import os
 import re
 import smtplib
-import time
+ main
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 import feedparser
-import requests
+ main
 
 KEYWORDS = ["식품", "표시", "광고", "화장품", "인체"]
 
@@ -39,15 +39,7 @@ RSS_CONFIG = [
 
 SENT_FILE = Path("sent_items.json")
 SUBJECT = "[식약처 법령 알림] 신규 법령정보 감지"
-REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    )
-}
-REQUEST_TIMEOUT = 20
-REQUEST_RETRIES = 3
+ main
 
 
 @dataclass
@@ -81,7 +73,7 @@ def get_entry_id(entry: feedparser.FeedParserDict) -> str:
 
 
 def extract_text(entry: feedparser.FeedParserDict) -> str:
-    parts = [entry.get("title", ""), entry.get("summary", ""), entry.get("description", "")]
+ main
     return " ".join(parts)
 
 
@@ -93,29 +85,7 @@ def find_keywords(text: str) -> List[str]:
     return found
 
 
-def fetch_feed_content(url: str) -> bytes:
-    last_error: Exception | None = None
-    for attempt in range(1, REQUEST_RETRIES + 1):
-        try:
-            response = requests.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
-            response.raise_for_status()
-            return response.content
-        except requests.RequestException as exc:
-            last_error = exc
-            if attempt < REQUEST_RETRIES:
-                time.sleep(1)
-    raise RuntimeError(f"RSS 요청 실패: {url}") from last_error
-
-
-def parse_feed(url: str, keyword_filter: bool, sent_items: Set[str]) -> Tuple[List[MatchedItem], Set[str], bool]:
-    # Feed fetch/parse failures are isolated per RSS source to keep the full run alive.
-    try:
-        content = fetch_feed_content(url)
-        parsed = feedparser.parse(content)
-    except Exception as exc:
-        print(f"RSS 수집 실패 ({url}): {exc}")
-        return [], set(), True
-
+ main
     new_ids: Set[str] = set()
     matched_items: List[MatchedItem] = []
 
@@ -140,10 +110,7 @@ def parse_feed(url: str, keyword_filter: bool, sent_items: Set[str]) -> Tuple[Li
         )
         new_ids.add(item_id)
 
-    return matched_items, new_ids, False
-
-
-def build_email_body(results: Dict[str, List[MatchedItem]], failed_feeds: Set[str]) -> str:
+ main
     lines: List[str] = []
     lines.append("식품의약품안전처 법령정보 RSS 모니터링 결과입니다.")
     lines.append("")
@@ -153,11 +120,7 @@ def build_email_body(results: Dict[str, List[MatchedItem]], failed_feeds: Set[st
         items = results[name]
         lines.append(f"{idx}. {name}")
 
-        if name in failed_feeds:
-            lines.append("- 수집 실패")
-            lines.append("")
-            continue
-
+ main
         if config["keyword_filter"]:
             if items:
                 unique_keywords = sorted({k for item in items for k in item.matched_keywords})
@@ -207,28 +170,7 @@ def main() -> None:
     sent_items = load_sent_items()
     results: Dict[str, List[MatchedItem]] = {}
     ids_to_add: Set[str] = set()
-    failed_feeds: Set[str] = set()
-
-    for config in RSS_CONFIG:
-        items, ids, failed = parse_feed(config["url"], config["keyword_filter"], sent_items)
-        results[config["name"]] = items
-        ids_to_add.update(ids)
-        if failed:
-            failed_feeds.add(config["name"])
-
-    total_new = sum(len(v) for v in results.values())
-    should_send = total_new > 0 or bool(failed_feeds)
-    if not should_send:
-        print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
-        return
-
-    body = build_email_body(results, failed_feeds)
-    send_email(SUBJECT, body)
-    save_sent_items(sent_items.union(ids_to_add))
-    print(
-        f"{datetime.now(timezone.utc).isoformat()} - 메일 발송 완료 "
-        f"(신규 {total_new}건, 수집 실패 {len(failed_feeds)}건)"
-    )
+ main
 
 
 if __name__ == "__main__":
