@@ -84,15 +84,6 @@ def get_entry_id(entry: feedparser.FeedParserDict) -> str:
     return entry.get("link") or entry.get("id") or entry.get("guid") or ""
 
 
-def extract_text(entry: feedparser.FeedParserDict) -> str:
-    parts = [
-        entry.get("title", ""),
-        entry.get("summary", ""),
-        entry.get("description", ""),
-    ]
-    return " ".join(parts)
-
-
 def find_keywords(text: str) -> List[str]:
     found = []
     for keyword in KEYWORDS:
@@ -143,15 +134,15 @@ def parse_feed(
         if not item_id or item_id in sent_items:
             continue
 
-        text = extract_text(entry)
-        matched_keywords = find_keywords(text)
+        title = entry.get("title", "(제목 없음)")
+        matched_keywords = find_keywords(title)
 
         if keyword_filter and not matched_keywords:
             continue
 
         matched_items.append(
             MatchedItem(
-                title=entry.get("title", "(제목 없음)"),
+                title=title,
                 published=entry.get("published", entry.get("updated", "등록일 정보 없음")),
                 link=entry.get("link", ""),
                 matched_keywords=matched_keywords,
