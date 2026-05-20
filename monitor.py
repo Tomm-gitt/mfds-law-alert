@@ -2,6 +2,7 @@ import json
 import os
 import re
 import smtplib
+ main
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
@@ -9,9 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 import feedparser
-
-KST = timezone.utc
-# KST timestamp string only; scheduling handled by GitHub Actions cron(UTC)
+ main
 
 KEYWORDS = ["식품", "표시", "광고", "화장품", "인체"]
 
@@ -40,6 +39,7 @@ RSS_CONFIG = [
 
 SENT_FILE = Path("sent_items.json")
 SUBJECT = "[식약처 법령 알림] 신규 법령정보 감지"
+ main
 
 
 @dataclass
@@ -73,11 +73,7 @@ def get_entry_id(entry: feedparser.FeedParserDict) -> str:
 
 
 def extract_text(entry: feedparser.FeedParserDict) -> str:
-    parts = [
-        entry.get("title", ""),
-        entry.get("summary", ""),
-        entry.get("description", ""),
-    ]
+ main
     return " ".join(parts)
 
 
@@ -89,12 +85,7 @@ def find_keywords(text: str) -> List[str]:
     return found
 
 
-def parse_feed(feed_name: str, url: str, keyword_filter: bool, sent_items: Set[str]) -> Tuple[List[MatchedItem], Set[str]]:
-    parsed = fetch_feed(url)
-
-if parsed is None:
-    print(f"RSS 수집 실패: {name}")
-    return [], []
+ main
     new_ids: Set[str] = set()
     matched_items: List[MatchedItem] = []
 
@@ -119,10 +110,7 @@ if parsed is None:
         )
         new_ids.add(item_id)
 
-    return matched_items, new_ids
-
-
-def build_email_body(results: Dict[str, List[MatchedItem]]) -> str:
+ main
     lines: List[str] = []
     lines.append("식품의약품안전처 법령정보 RSS 모니터링 결과입니다.")
     lines.append("")
@@ -132,6 +120,7 @@ def build_email_body(results: Dict[str, List[MatchedItem]]) -> str:
         items = results[name]
         lines.append(f"{idx}. {name}")
 
+ main
         if config["keyword_filter"]:
             if items:
                 unique_keywords = sorted({k for item in items for k in item.matched_keywords})
@@ -181,21 +170,7 @@ def main() -> None:
     sent_items = load_sent_items()
     results: Dict[str, List[MatchedItem]] = {}
     ids_to_add: Set[str] = set()
-
-    for config in RSS_CONFIG:
-        items, ids = parse_feed(config["name"], config["url"], config["keyword_filter"], sent_items)
-        results[config["name"]] = items
-        ids_to_add.update(ids)
-
-    total_new = sum(len(v) for v in results.values())
-    if total_new == 0:
-        print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
-        return
-
-    body = build_email_body(results)
-    send_email(SUBJECT, body)
-    save_sent_items(sent_items.union(ids_to_add))
-    print(f"{datetime.now(timezone.utc).isoformat()} - 메일 발송 완료 ({total_new}건)")
+ main
 
 
 if __name__ == "__main__":
