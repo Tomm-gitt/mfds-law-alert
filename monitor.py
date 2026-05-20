@@ -12,7 +12,7 @@ from typing import Dict, List, Set, Tuple
 import feedparser
 import requests
 
-KEYWORDS = ["식품", "표시", "광고", "화장품", "인체"]
+KEYWORDS = ["식품", "표시", "광고", "화장품", "인체" "위생", "업소",]
 
 RSS_CONFIG = [
     {
