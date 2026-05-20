@@ -145,9 +145,15 @@ def parse_feed(
 
         if not test_mode and item_id in sent_items:
             continue
-
         title = entry.get("title", "(제목 없음)")
-        matched_keywords = find_keywords(title)
+
+        cleaned_title = re.sub(
+            r"\(식품의약품안전처(공고|고시|예규).*?\)",
+            "",
+            title
+        ).strip()
+
+        matched_keywords = find_keywords(cleaned_title)
 
         if keyword_filter and not matched_keywords:
             continue
