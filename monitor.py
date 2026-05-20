@@ -49,6 +49,7 @@ REQUEST_HEADERS = {
 }
 REQUEST_TIMEOUT = 20
 REQUEST_RETRIES = 3
+TEST_ITEM_LIMIT = 10
 
 
 @dataclass
@@ -57,6 +58,10 @@ class MatchedItem:
     published: str
     link: str
     matched_keywords: List[str]
+
+
+def is_test_mode() -> bool:
+    return os.environ.get("TEST_MODE", "").lower() == "true"
 
 
 def load_sent_items() -> Set[str]:
@@ -118,6 +123,7 @@ def parse_feed(
     url: str,
     keyword_filter: bool,
     sent_items: Set[str],
+    test_mode: bool,
 ) -> Tuple[List[MatchedItem], Set[str], bool]:
     try:
         content = fetch_feed_content(url)
@@ -129,9 +135,15 @@ def parse_feed(
     new_ids: Set[str] = set()
     matched_items: List[MatchedItem] = []
 
-    for entry in parsed.entries:
+    entries = parsed.entries[:TEST_ITEM_LIMIT] if test_mode else parsed.entries
+
+    for entry in entries:
         item_id = get_entry_id(entry)
-        if not item_id or item_id in sent_items:
+
+        if not item_id:
+            continue
+
+        if not test_mode and item_id in sent_items:
             continue
 
         title = entry.get("title", "(제목 없음)")
@@ -148,7 +160,9 @@ def parse_feed(
                 matched_keywords=matched_keywords,
             )
         )
-        new_ids.add(item_id)
+
+        if not test_mode:
+            new_ids.add(item_id)
 
     return matched_items, new_ids, False
 
@@ -156,9 +170,17 @@ def parse_feed(
 def build_email_body(
     results: Dict[str, List[MatchedItem]],
     failed_feeds: Set[str],
+    test_mode: bool,
 ) -> str:
     lines: List[str] = []
-    lines.append("식품의약품안전처 법령정보 RSS 모니터링 결과입니다.")
+
+    if test_mode:
+        lines.append("[TEST MODE] 식품의약품안전처 법령정보 RSS 키워드 감지 테스트 결과입니다.")
+        lines.append("- 테스트 모드에서는 sent_items.json 중복 여부를 무시합니다.")
+        lines.append(f"- 각 RSS별 최신 {TEST_ITEM_LIMIT}개 게시물을 대상으로 title 기준 키워드 감지를 수행합니다.")
+    else:
+        lines.append("식품의약품안전처 법령정보 RSS 모니터링 결과입니다.")
+
     lines.append("")
 
     for idx, config in enumerate(RSS_CONFIG, start=1):
@@ -196,7 +218,10 @@ def build_email_body(
                     lines.append(f"     등록일: {item.published}")
                     lines.append(f"     링크: {item.link}")
             else:
-                lines.append("- 신규 업로드 게시물: 없음")
+                if test_mode:
+                    lines.append(f"- 최신 {TEST_ITEM_LIMIT}개 기준 표시할 게시물 없음")
+                else:
+                    lines.append("- 신규 업로드 게시물: 없음")
 
         lines.append("")
 
@@ -220,7 +245,9 @@ def send_email(subject: str, body: str) -> None:
 
 
 def main() -> None:
+    test_mode = is_test_mode()
     sent_items = load_sent_items()
+
     results: Dict[str, List[MatchedItem]] = {}
     ids_to_add: Set[str] = set()
     failed_feeds: Set[str] = set()
@@ -231,6 +258,7 @@ def main() -> None:
             config["url"],
             config["keyword_filter"],
             sent_items,
+            test_mode,
         )
         results[config["name"]] = items
         ids_to_add.update(ids)
@@ -240,17 +268,20 @@ def main() -> None:
 
     total_new = sum(len(v) for v in results.values())
 
-    if total_new == 0 and not failed_feeds:
+    if not test_mode and total_new == 0 and not failed_feeds:
         print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
         return
 
-    body = build_email_body(results, failed_feeds)
-    send_email(SUBJECT, body)
-    save_sent_items(sent_items.union(ids_to_add))
+    subject = f"[TEST] {SUBJECT}" if test_mode else SUBJECT
+    body = build_email_body(results, failed_feeds, test_mode)
+    send_email(subject, body)
+
+    if not test_mode:
+        save_sent_items(sent_items.union(ids_to_add))
 
     print(
         f"{datetime.now(timezone.utc).isoformat()} - 메일 발송 완료 "
-        f"(신규 {total_new}건, 수집 실패 {len(failed_feeds)}건)"
+        f"(test_mode={test_mode}, 감지 {total_new}건, 수집 실패 {len(failed_feeds)}건)"
     )
 
 
