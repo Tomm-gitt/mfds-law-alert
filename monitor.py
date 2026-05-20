@@ -108,6 +108,7 @@ def fetch_feed_content(url: str) -> bytes:
 
 
 def parse_feed(url: str, keyword_filter: bool, sent_items: Set[str]) -> Tuple[List[MatchedItem], Set[str], bool]:
+    # Feed fetch/parse failures are isolated per RSS source to keep the full run alive.
     try:
         content = fetch_feed_content(url)
         parsed = feedparser.parse(content)
