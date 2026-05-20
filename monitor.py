@@ -148,7 +148,7 @@ def parse_feed(
         title = entry.get("title", "(제목 없음)")
 
         cleaned_title = re.sub(
-            r"\(식품의약품안전처(공고|고시|예규).*?\)",
+            r"\(식품의약품안전처\s*(공고|고시|예규).*?\)",
             "",
             title
         ).strip()
