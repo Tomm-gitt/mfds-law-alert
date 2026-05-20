@@ -1,0 +1,41 @@
+name: MFDS RSS Monitor
+
+on:
+  schedule:
+    # KST 05:00 = UTC 20:00 (previous day)
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run monitor
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python monitor.py
+
+      - name: Commit sent history
+        run: |
+          if [ -n "$(git status --porcelain sent_items.json 2>/dev/null)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add sent_items.json
+            git commit -m "chore: update sent RSS items"
+            git push
+          else
+            echo "No changes in sent_items.json"
+          fi
