@@ -26,7 +26,6 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          TEST_MODE: "true"
         run: python monitor.py
 
       - name: Commit sent history
