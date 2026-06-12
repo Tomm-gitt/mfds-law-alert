@@ -26,22 +26,22 @@ KEYWORDS = [
 RSS_CONFIG = [
     {
         "name": "입법/행정예고",
-        "url": "https://www.mfds.go.kr/www/rss/brd.do?brdId=data0009",
+        "url": "http://www.mfds.go.kr/www/rss/brd.do?brdId=data0009",
         "keyword_filter": True,
     },
     {
         "name": "제·개정고시",
-        "url": "https://www.mfds.go.kr/www/rss/brd.do?brdId=data0008",
+        "url": "http://www.mfds.go.kr/www/rss/brd.do?brdId=data0008",
         "keyword_filter": True,
     },
     {
         "name": "법, 시행령, 시행규칙",
-        "url": "https://www.mfds.go.kr/www/rss/brd.do?brdId=data0003",
+        "url": "http://www.mfds.go.kr/www/rss/brd.do?brdId=data0003",
         "keyword_filter": True,
     },
     {
         "name": "본회의 통과 식의약 법률",
-        "url": "https://www.mfds.go.kr/www/rss/brd.do?brdId=relaw0001",
+        "url": "http://www.mfds.go.kr/www/rss/brd.do?brdId=relaw0001",
         "keyword_filter": False,
     },
 ]
@@ -120,7 +120,7 @@ def fetch_feed_content(url: str) -> bytes:
             return response.content
         except requests.RequestException as exc:
             last_error = exc
-            print(f"RSS 요청 실패: {url} / attempt {attempt}")
+            print(f"RSS 요청 실패: {url} / attempt {attempt} / error={repr(exc)}")
             if attempt < REQUEST_RETRIES:
                 time.sleep(3)
 
