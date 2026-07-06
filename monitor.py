@@ -267,22 +267,20 @@ def main() -> None:
             failed_feeds.add(config["name"])
 
     total_new = sum(len(v) for v in results.values())
-    all_failed = len(failed_feeds) == len(RSS_CONFIG)  # 전체 피드가 모두 실패한 경우
 
     if not test_mode:
+        # 수집 실패가 하나라도 있으면 메일 미발송 (간헐적 서버 불안정 무시)
+        if failed_feeds:
+            print(
+                f"{datetime.now(timezone.utc).isoformat()} - "
+                f"수집 실패({len(failed_feeds)}건) 감지, 메일 미발송: {failed_feeds}"
+            )
+            return
+
+        # 수집 성공 + 신규 항목 없음 → 메일 미발송
         if total_new == 0:
-            if not failed_feeds:
-                # 정상 수집 + 신규 항목 없음 → 메일 미발송
-                print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
-                return
-            elif not all_failed:
-                # 일부 피드만 실패 + 신규 항목 없음 → 메일 미발송 (간헐적 서버 불안정 무시)
-                print(
-                    f"{datetime.now(timezone.utc).isoformat()} - "
-                    f"일부 수집 실패({len(failed_feeds)}건)이나 신규 항목 없어 메일 미발송: {failed_feeds}"
-                )
-                return
-            # else: 전체 실패(all_failed) → 메일 발송
+            print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
+            return
 
     subject = f"[TEST] {SUBJECT}" if test_mode else SUBJECT
     body = build_email_body(results, failed_feeds, test_mode)
