@@ -56,8 +56,8 @@ REQUEST_HEADERS = {
         "Chrome/124.0.0.0 Safari/537.36"
     )
 }
-REQUEST_TIMEOUT = 20
-REQUEST_RETRIES = 3
+REQUEST_TIMEOUT = 30   # 20 → 30초로 증가
+REQUEST_RETRIES = 5    # 3 → 5회로 증가
 TEST_ITEM_LIMIT = 10
 
 
@@ -120,11 +120,11 @@ def fetch_feed_content(url: str) -> bytes:
             return response.content
         except requests.RequestException as exc:
             last_error = exc
-            print(f"RSS 요청 실패: {url} / attempt {attempt} / error={repr(exc)}")
+            print(f"RSS 요청 실패: {url} / attempt {attempt}/{REQUEST_RETRIES} / error={repr(exc)}")
             if attempt < REQUEST_RETRIES:
-                time.sleep(3)
+                time.sleep(5)  # 3 → 5초로 증가
 
-    raise RuntimeError(f"RSS 요청 최종 실패: {url}") from last_error
+    raise RuntimeError(f"RSS 요청 최종 실패 ({REQUEST_RETRIES}회 재시도): {url}") from last_error
 
 
 def parse_feed(
@@ -154,6 +154,7 @@ def parse_feed(
 
         if not test_mode and item_id in sent_items:
             continue
+
         title = entry.get("title", "(제목 없음)")
 
         cleaned_title = re.sub(
@@ -243,22 +244,6 @@ def build_email_body(
     return "\n".join(lines).strip()
 
 
-def send_email(subject: str, body: str) -> None:
-    email_user = os.environ["EMAIL_USER"]
-    email_password = os.environ["EMAIL_PASSWORD"]
-    email_to = os.environ["EMAIL_TO"]
-
-    msg = MIMEText(body, _charset="utf-8")
-    msg["Subject"] = subject
-    msg["From"] = email_user
-    msg["To"] = email_to
-
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(email_user, email_password)
-        server.send_message(msg)
-
-
 def main() -> None:
     test_mode = is_test_mode()
     sent_items = load_sent_items()
@@ -282,10 +267,22 @@ def main() -> None:
             failed_feeds.add(config["name"])
 
     total_new = sum(len(v) for v in results.values())
+    all_failed = len(failed_feeds) == len(RSS_CONFIG)  # 전체 피드가 모두 실패한 경우
 
-    if not test_mode and total_new == 0 and not failed_feeds:
-        print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
-        return
+    if not test_mode:
+        if total_new == 0:
+            if not failed_feeds:
+                # 정상 수집 + 신규 항목 없음 → 메일 미발송
+                print(f"{datetime.now(timezone.utc).isoformat()} - 신규 감지 항목 없음. 메일 미발송")
+                return
+            elif not all_failed:
+                # 일부 피드만 실패 + 신규 항목 없음 → 메일 미발송 (간헐적 서버 불안정 무시)
+                print(
+                    f"{datetime.now(timezone.utc).isoformat()} - "
+                    f"일부 수집 실패({len(failed_feeds)}건)이나 신규 항목 없어 메일 미발송: {failed_feeds}"
+                )
+                return
+            # else: 전체 실패(all_failed) → 메일 발송
 
     subject = f"[TEST] {SUBJECT}" if test_mode else SUBJECT
     body = build_email_body(results, failed_feeds, test_mode)
@@ -298,6 +295,22 @@ def main() -> None:
         f"{datetime.now(timezone.utc).isoformat()} - 메일 발송 완료 "
         f"(test_mode={test_mode}, 감지 {total_new}건, 수집 실패 {len(failed_feeds)}건)"
     )
+
+
+def send_email(subject: str, body: str) -> None:
+    email_user = os.environ["EMAIL_USER"]
+    email_password = os.environ["EMAIL_PASSWORD"]
+    email_to = os.environ["EMAIL_TO"]
+
+    msg = MIMEText(body, _charset="utf-8")
+    msg["Subject"] = subject
+    msg["From"] = email_user
+    msg["To"] = email_to
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(email_user, email_password)
+        server.send_message(msg)
 
 
 if __name__ == "__main__":
